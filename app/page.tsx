@@ -3,14 +3,14 @@
 import { WalletButton } from "@/components/WalletButton";
 import AccountListDropdown from "@/components/WalletButton/AccountListDropdown";
 import useWallet from "@/hooks/useWallet";
-import { account, block } from "@autonomys/auto-consensus";
-import { address, createConnection } from "@autonomys/auto-utils";
+// import { account, block } from "@autonomys/auto-consensus";
+// import { address, createConnection } from "@autonomys/auto-utils";
 
-async function getApiInstance() {
-  const endpoint = "wss://rpc.taurus.subspace.foundation/ws";
-  const api = await createConnection(endpoint);
-  return api;
-}
+// async function getApiInstance() {
+//   const endpoint = "wss://rpc.taurus.subspace.foundation/ws";
+//   const api = await createConnection(endpoint);
+//   return api;
+// }
 
 export default function Home() {
   const { actingAccount } = useWallet();

@@ -17,7 +17,6 @@
     "@next/third-parties": "^15.1.6",
     "@subwallet/wallet-connect": "^0.2.7",
     "next": "15.1.6",
-    "next-auth": "^4.24.11",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

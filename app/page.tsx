@@ -3,6 +3,7 @@
 import { WalletButton } from "@/components/WalletButton";
 import AccountListDropdown from "@/components/WalletButton/AccountListDropdown";
 import useWallet from "@/hooks/useWallet";
+import { FC } from "react";
 // import { account, block } from "@autonomys/auto-consensus";
 // import { address, createConnection } from "@autonomys/auto-utils";
 
@@ -12,7 +13,7 @@ import useWallet from "@/hooks/useWallet";
 //   return api;
 // }
 
-export default function Home() {
+const Home: FC = () => {
   const { actingAccount } = useWallet();
   // const connection = getApiInstance();
 
@@ -34,4 +35,6 @@ export default function Home() {
       )}
     </div>
   );
-}
+};
+
+export default Home;

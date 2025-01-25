@@ -11,14 +11,27 @@
   },
   "dependencies": {
     "@autonomys/auto-consensus": "^1.2.1",
+    "@autonomys/auto-dag-data": "^1.2.1",
+    "@autonomys/auto-drive": "^1.2.1",
+    "@autonomys/auto-id": "^1.2.1",
     "@autonomys/auto-utils": "^1.2.1",
     "@headlessui/react": "^2.2.0",
     "@heroicons/react": "^2.2.0",
     "@next/third-parties": "^15.1.6",
+    "@peculiar/asn1-schema": "^2.3.15",
+    "@peculiar/asn1-x509": "^2.3.15",
+    "@peculiar/x509": "^1.12.3",
+    "@polkadot/types": "^15.4.1",
+    "@radix-ui/react-progress": "^1.1.1",
     "@subwallet/wallet-connect": "^0.2.7",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "ethers": "^6.13.5",
+    "lucide-react": "^0.474.0",
     "next": "15.1.6",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "tailwind-merge": "^2.6.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

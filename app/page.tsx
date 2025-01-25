@@ -1,38 +1,38 @@
 "use client";
 
-import { WalletButton } from "@/components/WalletButton";
-import AccountListDropdown from "@/components/WalletButton/AccountListDropdown";
-import useWallet from "@/hooks/useWallet";
-import { FC } from "react";
-// import { account, block } from "@autonomys/auto-consensus";
-// import { address, createConnection } from "@autonomys/auto-utils";
-
-// async function getApiInstance() {
-//   const endpoint = "wss://rpc.taurus.subspace.foundation/ws";
-//   const api = await createConnection(endpoint);
-//   return api;
-// }
+import { FC, useEffect, useState } from "react";
+import Header from "@/components/Header";
+import FileUploader from "@/components/FileUpload";
+import DataTable from "@/components/Table";
+import { Task } from "@/components/Table/DataTable";
 
 const Home: FC = () => {
-  const { actingAccount } = useWallet();
-  // const connection = getApiInstance();
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // const accountData = await account(await connection, '0x12e4D8cD81Cf6599accDdE44abAbC699f58fB743')
+  const fetchTasks = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch("/api/tasks/list");
+      const data = await response.json();
+      console.log({ data });
+      setTasks(data.tasks.rows);
+      setLoading(false);
+    } catch (error) {
+      alert(error);
+      setLoading(false);
+    }
+  };
 
-  // const blockData = await block(await connection)
-  // const addressData = await address('0x12e4D8cD81Cf6599accDdE44abAbC699f58fB743')
-
-  // console.log({ accountData, blockData, addressData });
+  useEffect(() => {
+    fetchTasks();
+  }, []);
 
   return (
     <div>
-      {!actingAccount ? (
-        <WalletButton />
-      ) : (
-        <div className="flex">
-          <AccountListDropdown />
-        </div>
-      )}
+      <Header />
+      <FileUploader />
+      <DataTable data={tasks} isLoading={loading} refresh={fetchTasks} />
     </div>
   );
 };

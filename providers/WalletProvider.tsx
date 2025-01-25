@@ -1,19 +1,6 @@
 "use client";
 
-import {
-  activate,
-  ApiPromise,
-  createConnection,
-  DomainRuntime,
-  networks,
-} from "@autonomys/auto-utils";
-import { sendGAEvent } from "@next/third-parties/google";
-import { InjectedExtension } from "@polkadot/extension-inject/types";
-import { getWalletBySource } from "@subwallet/wallet-connect/dotsama/wallets";
-import { WalletType } from "constants/wallet";
-import { useSafeLocalStorage } from "hooks/useSafeLocalStorage";
-import { useParams } from "next/navigation";
-import {
+import React, {
   createContext,
   FC,
   ReactNode,
@@ -21,56 +8,80 @@ import {
   useEffect,
   useState,
 } from "react";
-import type { ChainParam } from "types/app";
-import type { WalletAccountWithType } from "types/wallet";
+import { createConnection, ApiPromise } from "@autonomys/auto-utils";
+import { getWalletBySource } from "@subwallet/wallet-connect/dotsama/wallets";
+import type { InjectedExtension } from "@polkadot/extension-inject/types";
+import { WalletType } from "constants/wallet";
+import { useSafeLocalStorage } from "hooks/useSafeLocalStorage";
 import { formatAddress } from "utils/formatAddress";
 
-export type DomainsApis = { [key: string]: ApiPromise };
+import { sendGAEvent } from "@next/third-parties/google";
+import type { WalletAccountWithType } from "types/wallet";
 
-export type WalletContextValue = {
+// ---------------------------------------------------------
+// 1. Context Types
+// ---------------------------------------------------------
+export interface WalletContextValue {
+  /** The single Polkadot.js-style API connected to wss://auto-evm-0.taurus.subspace.network/ws */
   api: ApiPromise | undefined;
-  domainsApis: DomainsApis;
-  isReady: boolean;
-  accounts: WalletAccountWithType[] | undefined | null;
-  error: Error | null;
-  injector: InjectedExtension | null;
-  actingAccount: WalletAccountWithType | undefined;
-  extensions: InjectedExtension[] | undefined;
-  disconnectWallet: () => void;
-  setActingAccount: (account: WalletAccountWithType) => void;
-  setPreferredExtension: (extension: string) => void;
-  preferredExtension: string | undefined;
-  subspaceAccount: string | undefined;
-  handleSelectFirstWalletFromExtension: (source: string) => Promise<void>;
-  changeAccount: (account: WalletAccountWithType) => void;
-};
 
+  /** True once we've selected an account or completed setup */
+  isReady: boolean;
+
+  /** All fetched accounts from the Polkadot extension */
+  accounts: WalletAccountWithType[] | null | undefined;
+
+  /** Currently acting account */
+  actingAccount: WalletAccountWithType | undefined;
+
+  /** Polkadot extension injector for signing */
+  injector: InjectedExtension | null;
+
+  /** Any error encountered during setup */
+  error: Error | null;
+
+  /** Disconnect everything (clear accounts, etc.) */
+  disconnectWallet: () => void;
+
+  /** Change the active account from `accounts` */
+  changeAccount: (account: WalletAccountWithType) => void;
+
+  /** If you want to fetch from a certain extension automatically */
+  handleSelectFirstWalletFromExtension: (source: string) => Promise<void>;
+}
+
+// ---------------------------------------------------------
+// 2. Create Context
+// ---------------------------------------------------------
 export const WalletContext = createContext<WalletContextValue>(
-  // @ts-expect-error It's a good practice not to give a default value even though the linter tells you so
-  {}
+  {} as WalletContextValue
 );
 
+// ---------------------------------------------------------
+// 3. Provider Implementation
+// ---------------------------------------------------------
 type Props = {
   children?: ReactNode;
 };
 
 export const WalletProvider: FC<Props> = ({ children }) => {
-  const { chain } = useParams<ChainParam>();
+  // State for the Polkadot.js-style API (connected to EVM domain)
   const [api, setApi] = useState<ApiPromise>();
-  const [domainsApis, setDomainsApis] = useState<DomainsApis>({});
+
+  // Basic flags and references
   const [isReady, setIsReady] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
+  // Accounts from extension
   const [accounts, setAccounts] = useState<
     WalletAccountWithType[] | null | undefined
   >(undefined);
-  const [extensions] = useState<InjectedExtension[] | undefined>(undefined);
-  const [error, setError] = useState<Error | null>(null);
-  const [injector, setInjector] = useState<InjectedExtension | null>(null);
   const [actingAccount, setActingAccount] = useState<
     WalletAccountWithType | undefined
   >(undefined);
-  const [subspaceAccount, setSubspaceAccount] = useState<string | undefined>(
-    undefined
-  );
+  const [injector, setInjector] = useState<InjectedExtension | null>(null);
+
+  // Local storage for remembering chosen account across page reloads
   const [preferredAccount, setPreferredAccount] = useSafeLocalStorage(
     "localAccount",
     null
@@ -80,219 +91,148 @@ export const WalletProvider: FC<Props> = ({ children }) => {
     null
   );
 
-  const prepareApi = useCallback(async () => {
+  // -------------------------------------------------------
+  // 3.1. Connect to wss://auto-evm-0.taurus.subspace.network/ws
+  // -------------------------------------------------------
+  const EVM_ENDPOINT = "wss://auto-evm-0.taurus.subspace.network/ws";
+
+  const connectToEvmNode = useCallback(async () => {
     try {
-      return await activate({ networkId: chain });
-    } catch (error) {
-      console.error("Failed to prepare API for chain", chain, "error:", error);
+      console.log("Connecting to Autonomys EVM domain:", EVM_ENDPOINT);
+      const evmApi = await createConnection(EVM_ENDPOINT);
+      console.log("Connection established. isConnected:", evmApi.isConnected);
+      setApi(evmApi);
+    } catch (err) {
+      console.error("Failed to connect to Autonomys EVM domain:", err);
+      setError(err as Error);
     }
-  }, [chain]);
+  }, []);
 
-  const prepareDomainsApis = useCallback(async () => {
-    try {
-      const network = networks.find((network) => network.id === chain);
-      if (!network) return;
-
-      const autoEvmRpc = network.domains.find(
-        (domain) => domain.runtime === DomainRuntime.AUTO_EVM
-      )?.rpcUrls[0];
-      const autoIdRpc = network.domains.find(
-        (domain) => domain.runtime === DomainRuntime.AUTO_ID
-      )?.rpcUrls[0];
-      if (!autoEvmRpc || !autoIdRpc) return;
-
-      const domainsRpcs = network.domains.map((domain) =>
-        domain.rpcUrls[0].replace("https://", "wss://")
-      );
-
-      const [autoEvm, autoId] = await Promise.all(
-        domainsRpcs.flatMap((rpc) => createConnection(rpc))
-      );
-      return {
-        autoEvm,
-        autoId,
-      };
-    } catch (error) {
-      console.error(
-        "Failed to prepare domains API for chain",
-        chain,
-        "error:",
-        error
-      );
-    }
-  }, [chain]);
-
-  const setup = useCallback(async () => {
-    setApi(await prepareApi());
-    const domainsApis = await prepareDomainsApis();
-    if (domainsApis) setDomainsApis(domainsApis);
-  }, [prepareApi, prepareDomainsApis]);
-
+  // -------------------------------------------------------
+  // 3.2. Changing the selected account
+  // -------------------------------------------------------
   const changeAccount = useCallback(
-    async (account: WalletAccountWithType) => {
+    (account: WalletAccountWithType) => {
       try {
+        // Distinguish Substrate vs. EVM if needed
+        // but typically subwallet provides sr25519 accounts
         const type =
           account.type === WalletType.subspace ||
           (account as { type: string }).type === "sr25519"
             ? WalletType.subspace
             : WalletType.ethereum;
-        setActingAccount({
-          ...account,
-          type,
-        });
-        const _subspaceAccount = formatAddress(account.address);
-        setSubspaceAccount(_subspaceAccount);
+
+        setActingAccount({ ...account, type });
+
+        // Format for UI if you want to display it in short form
+        const formatted = formatAddress(account.address);
+        console.log("Selected account:", formatted);
+
         setPreferredAccount(account.address);
-        const newInjector = extensions?.find(
-          (extension) => extension.name === account.source
-        );
-        if (newInjector) setInjector(newInjector);
         setIsReady(true);
+
+        // track event (optional)
         sendGAEvent({
           event: "wallet_select_account",
           value: `source:${account.source}`,
         });
-      } catch (error) {
-        console.error("Failed to change account", error);
+      } catch (err) {
+        console.error("Failed to change account:", err);
       }
     },
-    [extensions, setPreferredAccount]
+    [setPreferredAccount]
   );
 
-  const disconnectWallet = useCallback(async () => {
+  // -------------------------------------------------------
+  // 3.3. Disconnect
+  // -------------------------------------------------------
+  const disconnectWallet = useCallback(() => {
     setInjector(null);
     setAccounts([]);
     setActingAccount(undefined);
-    setSubspaceAccount(undefined);
+    setIsReady(false);
     setPreferredAccount(null);
     setPreferredExtension(null);
-    setIsReady(false);
     sendGAEvent("event", "wallet_disconnect");
   }, [setPreferredAccount, setPreferredExtension]);
 
-  const handleGetWalletFromExtension = useCallback(
-    async (source: string) => {
-      const wallet = getWalletBySource(source);
-      if (wallet) {
-        await wallet.enable();
-        // @ts-ignore:next-line
-        if (wallet.extension) setInjector(wallet.extension);
-        const walletAccounts =
-          (await wallet.getAccounts()) as WalletAccountWithType[];
-        setAccounts(walletAccounts);
-        setPreferredExtension(source);
-        sendGAEvent({
-          event: "wallet_get_wallet",
-          value: `source:${source}`,
-        });
-        return walletAccounts;
-      }
-    },
-    [setPreferredExtension]
-  );
-
+  // -------------------------------------------------------
+  // 3.4. Connect to an extension & select first account
+  // -------------------------------------------------------
   const handleSelectFirstWalletFromExtension = useCallback(
     async (source: string) => {
-      const walletAccounts = await handleGetWalletFromExtension(source);
-      if (!walletAccounts || walletAccounts.length === 0) return;
-      const mainAccount = walletAccounts.find(
-        (account) => account.source === source
-      );
-      if (mainAccount) changeAccount(mainAccount);
-    },
-    [handleGetWalletFromExtension, changeAccount]
-  );
+      // subwallet-js, polkadot-js, talisman, etc.
+      const wallet = getWalletBySource(source);
+      if (!wallet) {
+        console.warn("Wallet extension not found for source:", source);
+        return;
+      }
+      await wallet.enable();
+      if (wallet.extension) {
+        setInjector(wallet.extension);
+      }
+      const walletAccounts =
+        (await wallet.getAccounts()) as WalletAccountWithType[];
+      setAccounts(walletAccounts);
+      setPreferredExtension(source);
 
-  const handleConnectToExtensionAndAccount = useCallback(
-    async (address: string, source: string) => {
-      const walletAccounts = await handleGetWalletFromExtension(source);
-      if (!walletAccounts || walletAccounts.length === 0) return;
-      const mainAccount = walletAccounts.find(
-        (account) => account.address === address
-      );
-      if (mainAccount) changeAccount(mainAccount);
+      // Optionally pick the first account
+      if (walletAccounts.length > 0) {
+        changeAccount(walletAccounts[0]);
+      }
+
       sendGAEvent({
-        event: "wallet_auto_connect_account",
+        event: "wallet_get_wallet",
         value: `source:${source}`,
       });
     },
-    [handleGetWalletFromExtension, changeAccount]
+    [changeAccount, setPreferredExtension]
   );
 
+  // -------------------------------------------------------
+  // 4. On mount, connect to the EVM domain
+  // -------------------------------------------------------
   useEffect(() => {
-    // This effect is used to get the injector from the selected account
-    // and is triggered when the accounts or the actingAccountIdx change
-    const getInjector = async () => {
-      const { web3FromSource } = await import("@polkadot/extension-dapp");
+    connectToEvmNode();
+  }, [connectToEvmNode]);
 
-      if (actingAccount?.source) {
-        try {
-          const injector = await web3FromSource(actingAccount?.source);
-
-          setInjector(injector);
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } catch (e: any) {
-          setError(e);
+  // Optionally auto-reconnect to a previously selected account
+  useEffect(() => {
+    async function maybeReconnect() {
+      if (!actingAccount && preferredExtension && preferredAccount) {
+        // e.g. if user had subwallet previously
+        const wallet = getWalletBySource(preferredExtension);
+        if (!wallet) return;
+        await wallet.enable();
+        if (wallet.extension) {
+          setInjector(wallet.extension);
         }
+        const all = (await wallet.getAccounts()) as WalletAccountWithType[];
+        setAccounts(all);
+
+        // find the previously used address
+        const mainAccount = all.find((acc) => acc.address === preferredAccount);
+        if (mainAccount) changeAccount(mainAccount);
       }
-    };
-
-    getInjector();
-  }, [actingAccount]);
-
-  useEffect(() => {
-    setup();
-  }, [injector, setup]);
-
-  useEffect(() => {
-    if (!actingAccount && preferredExtension && preferredAccount)
-      handleConnectToExtensionAndAccount(preferredAccount, preferredExtension);
-  }, [
-    actingAccount,
-    preferredAccount,
-    preferredExtension,
-    handleConnectToExtensionAndAccount,
-  ]);
-
-  // This effect is used to mock the wallet when the environment variables are set in the .env file
-  useEffect(() => {
-    if (
-      process.env.REACT_APP_MOCK_WALLET &&
-      process.env.REACT_APP_MOCK_WALLET_ADDRESS &&
-      process.env.REACT_APP_MOCK_WALLET_SOURCE
-    ) {
-      const mockAccount = {
-        address: process.env.REACT_APP_MOCK_WALLET_ADDRESS,
-        source: process.env.REACT_APP_MOCK_WALLET_SOURCE,
-        type: WalletType.subspace,
-      };
-      setActingAccount(mockAccount);
-      setAccounts([mockAccount]);
-      setSubspaceAccount(
-        formatAddress(process.env.REACT_APP_MOCK_WALLET_ADDRESS)
-      );
-      setIsReady(true);
     }
-  }, []);
+    maybeReconnect();
+  }, [actingAccount, preferredAccount, preferredExtension, changeAccount]);
 
+  // -------------------------------------------------------
+  // 5. Return the provider
+  // -------------------------------------------------------
   return (
     <WalletContext.Provider
       value={{
         api,
-        domainsApis,
+        isReady,
         accounts,
         actingAccount,
-        isReady,
-        error,
         injector,
+        error,
         disconnectWallet,
-        extensions,
-        setActingAccount,
-        preferredExtension,
-        setPreferredExtension,
-        subspaceAccount,
-        handleSelectFirstWalletFromExtension,
         changeAccount,
+        handleSelectFirstWalletFromExtension,
       }}
     >
       {children}

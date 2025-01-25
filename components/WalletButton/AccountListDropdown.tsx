@@ -3,12 +3,11 @@
 import { shortString } from "@autonomys/auto-utils";
 import { Listbox, Transition } from "@headlessui/react";
 import { ChevronDownIcon } from "@heroicons/react/20/solid";
-
 import { WalletType } from "constants/wallet";
 import useMediaQuery from "hooks/useMediaQuery";
 import useWallet from "hooks/useWallet";
 import { Fragment, useCallback, useMemo } from "react";
-import { formatAddress } from "utils//formatAddress";
+import { accountIdToHex, formatAddress } from "utils/formatAddress";
 import { limitText } from "utils/string";
 
 function AccountListDropdown() {
@@ -25,42 +24,47 @@ function AccountListDropdown() {
     () =>
       accounts
         ? accounts.map((account, chainIdx) => (
-          <Listbox.Option
-            key={chainIdx}
-            className={({ active }) =>
-              `w-120 relative cursor-pointer select-none py-2 text-gray-900 dark:text-white ${active && "bg-gray-100 dark:bg-blueDarkAccent"
-              }`
-            }
-            value={account}
-          >
-            {({ selected }) => {
-              const subAccount =
-                account.type === WalletType.subspace ||
+            <Listbox.Option
+              key={chainIdx}
+              className={({ active }) =>
+                `w-120 relative cursor-pointer select-none py-2 text-gray-900 dark:text-white ${
+                  active && "bg-gray-100 dark:bg-blueDarkAccent"
+                }`
+              }
+              value={account}
+            >
+              {({ selected }) => {
+                console.log(accountIdToHex(account.address));
+
+                const subAccount =
+                  account.type === WalletType.subspace ||
                   (account as { type: string }).type === "sr25519"
-                  ? formatAddress(account.address)
-                  : account.address;
-              const formattedAccount = subAccount && shortString(subAccount);
-              return (
-                <div className="px-2">
-                  <span
-                    className={`block truncate ${selected ? "font-medium" : "font-normal"
+                    ? formatAddress(account.address)
+                    : account.address;
+                const formattedAccount = subAccount && shortString(subAccount);
+                return (
+                  <div className="px-2">
+                    <span
+                      className={`block truncate ${
+                        selected ? "font-medium" : "font-normal"
                       }`}
-                  >
-                    {account.name
-                      ? limitText(account.name, 16)
-                      : "Account " + chainIdx}
-                  </span>
-                  <span
-                    className={`block truncate ${selected ? "font-medium" : "font-normal"
+                    >
+                      {account.name
+                        ? limitText(account.name, 16)
+                        : "Account " + chainIdx}
+                    </span>
+                    <span
+                      className={`block truncate ${
+                        selected ? "font-medium" : "font-normal"
                       }`}
-                  >
-                    {formattedAccount}
-                  </span>
-                </div>
-              );
-            }}
-          </Listbox.Option>
-        ))
+                    >
+                      {formattedAccount}
+                    </span>
+                  </div>
+                );
+              }}
+            </Listbox.Option>
+          ))
         : null,
     [accounts]
   );
@@ -77,23 +81,25 @@ function AccountListDropdown() {
     <Listbox value={actingAccount} onChange={changeAccount}>
       <div className="relative">
         <Listbox.Button
-          className={`relative w-full cursor-default font-["Montserrat"] ${isDesktop
+          className={`relative w-full cursor-default font-["Montserrat"] ${
+            isDesktop
               ? "dark:bg-buttonLightTo rounded-full pr-10"
               : "rounded-l-full pr-6 dark:bg-primaryAccent"
-            } bg-white py-2 pl-3 text-left shadow-md focus:outline-none focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-orange-300 dark:text-white sm:text-sm md:mt-3`}
+          } bg-white py-2 pl-3 text-left shadow-md focus:outline-none focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-orange-300 dark:text-white sm:text-sm md:mt-3`}
         >
           <div className="flex items-center justify-center">
             <span className="ml-2 hidden w-5 truncate text-sm sm:block md:w-full ">
               {subspaceAccount
                 ? shortString(subspaceAccount)
                 : actingAccount
-                  ? shortString(actingAccount.address)
-                  : ""}
+                ? shortString(actingAccount.address)
+                : ""}
             </span>
             <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
               <ChevronDownIcon
-                className={`size-5 text-gray-400 ui-open:rotate-180${isDesktop ? "dark:text-primaryAccent" : "dark:text-white"
-                  }`}
+                className={`size-5 text-gray-400 ui-open:rotate-180${
+                  isDesktop ? "dark:text-primaryAccent" : "dark:text-white"
+                }`}
                 aria-hidden="true"
               />
             </span>

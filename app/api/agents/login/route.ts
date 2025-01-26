@@ -19,10 +19,11 @@ export async function POST(req: Request) {
     }
 
     // Query the database
-    const user = await User.findOne(
-      { userId, agentName, autoId: userId + agentName },
-      { userId: 1, agentName: 1, autoId: 1 } // Only return necessary fields
-    );
+    const user = await User.findOne({
+      userId,
+      agentName,
+      autoId: userId + agentName,
+    });
 
     if (user) {
       // User found

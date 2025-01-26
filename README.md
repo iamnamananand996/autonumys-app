@@ -173,9 +173,6 @@
 
 ## Demo
 
-<video width="600" controls>
-  <source src="./public/demo.mp4" type="video/mp4" />
-  Your browser does not support the video tag.
-</video>
+https://github.com/user-attachments/assets/d1b06619-0269-4c43-9ec0-cb75381220fa
 
 

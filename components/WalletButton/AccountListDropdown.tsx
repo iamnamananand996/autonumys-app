@@ -11,13 +11,8 @@ import { accountIdToHex, formatAddress } from "utils/formatAddress";
 import { limitText } from "utils/string";
 
 function AccountListDropdown() {
-  const {
-    actingAccount,
-    subspaceAccount,
-    accounts,
-    changeAccount,
-    disconnectWallet,
-  } = useWallet();
+  const { actingAccount, accounts, changeAccount, disconnectWallet } =
+    useWallet();
   const isDesktop = useMediaQuery("(min-width: 1024px)");
 
   const walletList = useMemo(
@@ -89,11 +84,7 @@ function AccountListDropdown() {
         >
           <div className="flex items-center justify-center">
             <span className="ml-2 hidden w-5 truncate text-sm sm:block md:w-full ">
-              {subspaceAccount
-                ? shortString(subspaceAccount)
-                : actingAccount
-                ? shortString(actingAccount.address)
-                : ""}
+              {actingAccount ? shortString(actingAccount.address) : ""}
             </span>
             <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
               <ChevronDownIcon

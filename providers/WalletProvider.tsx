@@ -143,6 +143,7 @@ export const WalletProvider: FC<Props> = ({ children }) => {
     setInjector(null);
     setAccounts([]);
     setActingAccount(undefined);
+    setIsLogIn(false);
     setIsReady(false);
     setPreferredAccount(null);
     setPreferredExtension(null);

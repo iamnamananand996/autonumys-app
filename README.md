@@ -173,4 +173,9 @@
 
 ## Demo
 
-[Demo](./public//demo.mp4)
+<video width="600" controls>
+  <source src="./public/demo.mp4" type="video/mp4" />
+  Your browser does not support the video tag.
+</video>
+
+

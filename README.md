@@ -170,3 +170,7 @@
 - Deployment on vercel with Next.js app to a production environment with MongoDB integration.
 
 ---
+
+## Demo
+
+[Demo](./public//demo.mp4)

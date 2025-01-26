@@ -1,37 +1,39 @@
-// app/api/tasks/list/route.ts
 import { NextResponse } from "next/server";
-import { createAutoDriveApi, apiCalls, Scope } from "@autonomys/auto-drive";
+import mongoose from "mongoose";
+import Task from "@/models/Task"; // Assuming you have a Task model
 
-export async function GET(request: Request) {
-  const api = createAutoDriveApi({
-    apiKey: process.env.AUTONOMYS_API_KEY || "",
-  });
-
-  try {
-    // Parse query parameters from the request URL
-    const url = new URL(request.url);
-    const limit = parseInt(url.searchParams.get("limit") ?? "10", 10);
-    const offset = parseInt(url.searchParams.get("offset") ?? "0", 10);
-
-    // Get the scope from query parameters, fallback to 'Scope.User' if not provided
-    const scopeParam = url.searchParams.get("scope") || "User";
-    const scope = Scope[scopeParam as keyof typeof Scope] || Scope.User;
-
-    // Fetch tasks from decentralized storage using Auto Drive's getRoots API
-    const tasksResponse = await apiCalls.getRoots(api, {
-      scope,
-      limit,
-      offset,
+// Ensure MongoDB connection
+if (!mongoose.connection.readyState) {
+  mongoose
+    .connect(process.env.MONGODB_URI || "")
+    .then(() => {
+      console.log("Connected to MongoDB Atlas successfully.");
+    })
+    .catch((error) => {
+      console.error("Failed to connect to MongoDB Atlas:", error);
     });
+}
 
-    // tasksResponse has shape: { totalCount: number, rows: Root[] }
-    // where rows is the array of items
+export async function GET(req: Request) {
+  try {
+    // Parse query parameters for pagination (optional)
+    const url = new URL(req.url);
+    const limit = parseInt(url.searchParams.get("limit") || "10", 10);
+    const page = parseInt(url.searchParams.get("page") || "1", 10);
+    const skip = (page - 1) * limit;
+
+    // Fetch tasks with pagination
+    const tasks = await Task.find().skip(skip).limit(limit).exec();
+    const totalTasks = await Task.countDocuments();
+
     return NextResponse.json({
-      rows: tasksResponse.rows,
-      totalCount: tasksResponse.totalCount,
-      limit,
-      offset,
-      scope: scopeParam,
+      tasks,
+      pagination: {
+        total: totalTasks,
+        limit,
+        page,
+        totalPages: Math.ceil(totalTasks / limit),
+      },
     });
   } catch (error) {
     console.error("Error fetching tasks:", error);

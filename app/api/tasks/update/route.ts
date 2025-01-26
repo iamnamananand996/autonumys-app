@@ -9,6 +9,7 @@ import { connectToDatabase } from "@/lib/mongoose";
 export async function POST(req: Request) {
   await connectToDatabase();
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { taskId, userId, status, senderAddress } = await req.json();
 
   if (!taskId || !userId || !status) {

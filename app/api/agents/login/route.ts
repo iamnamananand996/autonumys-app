@@ -17,10 +17,10 @@ if (!mongoose.connection.readyState) {
 export async function POST(req: Request) {
   try {
     // Parse the request body
-    const { userId, agentName, autoId } = await req.json();
+    const { userId, agentName } = await req.json();
 
     // Validate inputs
-    if (!userId || !agentName || !autoId) {
+    if (!userId || !agentName) {
       return NextResponse.json(
         { error: "User ID, Agent Name, and Auto ID are required." },
         { status: 400 }
@@ -31,7 +31,7 @@ export async function POST(req: Request) {
     const user = await User.findOne({
       userId,
       agentName,
-      autoId,
+      autoId: userId + agentName,
     });
 
     if (user) {

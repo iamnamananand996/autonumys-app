@@ -7,7 +7,7 @@ import { WalletType } from "constants/wallet";
 import useMediaQuery from "hooks/useMediaQuery";
 import useWallet from "hooks/useWallet";
 import { Fragment, useCallback, useMemo } from "react";
-import { accountIdToHex, formatAddress } from "utils/formatAddress";
+import { formatAddress } from "utils/formatAddress";
 import { limitText } from "utils/string";
 
 function AccountListDropdown() {
@@ -29,8 +29,6 @@ function AccountListDropdown() {
               value={account}
             >
               {({ selected }) => {
-                console.log(accountIdToHex(account.address));
-
                 const subAccount =
                   account.type === WalletType.subspace ||
                   (account as { type: string }).type === "sr25519"

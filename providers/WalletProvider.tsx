@@ -2,8 +2,10 @@
 
 import React, {
   createContext,
+  Dispatch,
   FC,
   ReactNode,
+  SetStateAction,
   useCallback,
   useEffect,
   useState,
@@ -13,66 +15,37 @@ import { getWalletBySource } from "@subwallet/wallet-connect/dotsama/wallets";
 import type { InjectedExtension } from "@polkadot/extension-inject/types";
 import { WalletType } from "constants/wallet";
 import { useSafeLocalStorage } from "hooks/useSafeLocalStorage";
-import { formatAddress } from "utils/formatAddress";
-
 import { sendGAEvent } from "@next/third-parties/google";
 import type { WalletAccountWithType } from "types/wallet";
+import toast from "react-hot-toast";
 
-// ---------------------------------------------------------
-// 1. Context Types
-// ---------------------------------------------------------
 export interface WalletContextValue {
-  /** The single Polkadot.js-style API connected to wss://auto-evm-0.taurus.subspace.network/ws */
   api: ApiPromise | undefined;
-
-  /** True once we've selected an account or completed setup */
   isReady: boolean;
-
-  /** All fetched accounts from the Polkadot extension */
   accounts: WalletAccountWithType[] | null | undefined;
-
-  /** Currently acting account */
   actingAccount: WalletAccountWithType | undefined;
-
-  /** Polkadot extension injector for signing */
   injector: InjectedExtension | null;
-
-  /** Any error encountered during setup */
   error: Error | null;
-
-  /** Disconnect everything (clear accounts, etc.) */
+  isLogIn: boolean;
+  isRegistered: boolean;
+  setIsLogIn: Dispatch<SetStateAction<boolean>>;
   disconnectWallet: () => void;
-
-  /** Change the active account from `accounts` */
   changeAccount: (account: WalletAccountWithType) => void;
-
-  /** If you want to fetch from a certain extension automatically */
   handleSelectFirstWalletFromExtension: (source: string) => Promise<void>;
 }
 
-// ---------------------------------------------------------
-// 2. Create Context
-// ---------------------------------------------------------
 export const WalletContext = createContext<WalletContextValue>(
   {} as WalletContextValue
 );
 
-// ---------------------------------------------------------
-// 3. Provider Implementation
-// ---------------------------------------------------------
 type Props = {
   children?: ReactNode;
 };
 
 export const WalletProvider: FC<Props> = ({ children }) => {
-  // State for the Polkadot.js-style API (connected to EVM domain)
   const [api, setApi] = useState<ApiPromise>();
-
-  // Basic flags and references
   const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-
-  // Accounts from extension
   const [accounts, setAccounts] = useState<
     WalletAccountWithType[] | null | undefined
   >(undefined);
@@ -80,8 +53,8 @@ export const WalletProvider: FC<Props> = ({ children }) => {
     WalletAccountWithType | undefined
   >(undefined);
   const [injector, setInjector] = useState<InjectedExtension | null>(null);
-
-  // Local storage for remembering chosen account across page reloads
+  const [isLogIn, setIsLogIn] = useState<boolean>(false);
+  const [isRegistered, setIsRegistered] = useState<boolean>(false);
   const [preferredAccount, setPreferredAccount] = useSafeLocalStorage(
     "localAccount",
     null
@@ -91,10 +64,7 @@ export const WalletProvider: FC<Props> = ({ children }) => {
     null
   );
 
-  // -------------------------------------------------------
-  // 3.1. Connect to wss://auto-evm-0.taurus.subspace.network/ws
-  // -------------------------------------------------------
-  const EVM_ENDPOINT = "wss://auto-evm-0.taurus.subspace.network/ws";
+  const EVM_ENDPOINT = process.env.EVM_ENDPOINT || "";
 
   const connectToEvmNode = useCallback(async () => {
     try {
@@ -108,14 +78,44 @@ export const WalletProvider: FC<Props> = ({ children }) => {
     }
   }, []);
 
-  // -------------------------------------------------------
-  // 3.2. Changing the selected account
-  // -------------------------------------------------------
+  const handleLogin = async (
+    userId: string | undefined,
+    agentName: string | undefined
+  ) => {
+    if (!userId || !agentName) {
+      setIsLogIn(false);
+      toast.error("Please fill all fields.");
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/agents/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ userId, agentName }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        setIsLogIn(true);
+        toast.success(`Login successful: Welcome ${result.user.agentName}!`);
+      } else {
+        setIsLogIn(false);
+        toast.error(result.message || "Login failed.");
+      }
+    } catch (error) {
+      setIsLogIn(false);
+      console.error("Error during login:", error);
+      toast.error("An error occurred. Please try again later.");
+    }
+  };
+
   const changeAccount = useCallback(
     (account: WalletAccountWithType) => {
       try {
-        // Distinguish Substrate vs. EVM if needed
-        // but typically subwallet provides sr25519 accounts
         const type =
           account.type === WalletType.subspace ||
           (account as { type: string }).type === "sr25519"
@@ -123,11 +123,7 @@ export const WalletProvider: FC<Props> = ({ children }) => {
             : WalletType.ethereum;
 
         setActingAccount({ ...account, type });
-
-        // Format for UI if you want to display it in short form
-        const formatted = formatAddress(account.address);
-        console.log("Selected account:", formatted);
-
+        handleLogin(account.address, account.name);
         setPreferredAccount(account.address);
         setIsReady(true);
 
@@ -143,9 +139,6 @@ export const WalletProvider: FC<Props> = ({ children }) => {
     [setPreferredAccount]
   );
 
-  // -------------------------------------------------------
-  // 3.3. Disconnect
-  // -------------------------------------------------------
   const disconnectWallet = useCallback(() => {
     setInjector(null);
     setAccounts([]);
@@ -156,9 +149,6 @@ export const WalletProvider: FC<Props> = ({ children }) => {
     sendGAEvent("event", "wallet_disconnect");
   }, [setPreferredAccount, setPreferredExtension]);
 
-  // -------------------------------------------------------
-  // 3.4. Connect to an extension & select first account
-  // -------------------------------------------------------
   const handleSelectFirstWalletFromExtension = useCallback(
     async (source: string) => {
       // subwallet-js, polkadot-js, talisman, etc.
@@ -189,9 +179,6 @@ export const WalletProvider: FC<Props> = ({ children }) => {
     [changeAccount, setPreferredExtension]
   );
 
-  // -------------------------------------------------------
-  // 4. On mount, connect to the EVM domain
-  // -------------------------------------------------------
   useEffect(() => {
     connectToEvmNode();
   }, [connectToEvmNode]);
@@ -209,7 +196,6 @@ export const WalletProvider: FC<Props> = ({ children }) => {
         }
         const all = (await wallet.getAccounts()) as WalletAccountWithType[];
         setAccounts(all);
-
         // find the previously used address
         const mainAccount = all.find((acc) => acc.address === preferredAccount);
         if (mainAccount) changeAccount(mainAccount);
@@ -218,9 +204,6 @@ export const WalletProvider: FC<Props> = ({ children }) => {
     maybeReconnect();
   }, [actingAccount, preferredAccount, preferredExtension, changeAccount]);
 
-  // -------------------------------------------------------
-  // 5. Return the provider
-  // -------------------------------------------------------
   return (
     <WalletContext.Provider
       value={{
@@ -230,7 +213,10 @@ export const WalletProvider: FC<Props> = ({ children }) => {
         actingAccount,
         injector,
         error,
+        isLogIn,
+        isRegistered,
         disconnectWallet,
+        setIsLogIn,
         changeAccount,
         handleSelectFirstWalletFromExtension,
       }}

@@ -12,6 +12,7 @@ import Button from "../Button";
 import Skeleton from "../Skeleton";
 import DownloadButton from "./DownloadButton";
 import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
 
 export interface Owner {
   oauthProvide: string;
@@ -52,7 +53,7 @@ export default function DataTable() {
       setTotalPages(Math.ceil(data.totalCount / limit));
       setLoading(false);
     } catch (error) {
-      alert(error);
+      toast.error(error);
       setLoading(false);
     }
   };

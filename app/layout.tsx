@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { Toaster } from "react-hot-toast";
 import "./globals.css";
 
 const WalletProvider = dynamic(
@@ -18,6 +19,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
+        <Toaster position="top-right" reverseOrder={false} />
         <WalletProvider>{children}</WalletProvider>
       </body>
     </html>

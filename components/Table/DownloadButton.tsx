@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { Download, Loader2 } from "lucide-react";
 import Button from "../Button";
+import toast from "react-hot-toast";
 
 export type DownloadButtonProps = {
   cid: string;
@@ -31,8 +32,9 @@ const DownloadButton = ({ cid, fileName, fileType }: DownloadButtonProps) => {
       document.body.appendChild(anchor);
       anchor.click();
       document.body.removeChild(anchor);
+      toast.success("File downloaded successfully");
     } catch (error) {
-      console.error("Error downloading file:", error);
+      toast.error("Error downloading file:", error);
     } finally {
       setTimeout(() => {
         setIsLoading(false);

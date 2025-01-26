@@ -7,6 +7,7 @@ import FileTypeIcon from "./FileTypeIcon";
 import Button from "../Button";
 import Progress from "../Progress";
 import Spinner from "../Spinner";
+import toast from "react-hot-toast";
 
 interface FileUploaderProps {
   maxSize?: number; // in MB
@@ -37,8 +38,6 @@ export default function FileUploader({
 
     // Event listener to track upload progress
     xhr.upload.onprogress = (event) => {
-      console.log(event.loaded, event.total);
-
       if (event.lengthComputable) {
         const percentCompleted = Math.round((event.loaded / event.total) * 100);
         setProgress(percentCompleted);
@@ -49,12 +48,12 @@ export default function FileUploader({
     xhr.onload = () => {
       if (xhr.status === 200) {
         const { cid } = JSON.parse(xhr.responseText);
-        alert(`File uploaded successfully. CID: ${cid}`);
+        toast.success(`File uploaded successfully. CID: ${cid}`);
         setProgress(100);
         clearFile();
       } else {
         console.error("Upload failed:", xhr.statusText);
-        alert("File upload failed.");
+        toast.error("File upload failed.");
       }
       setIsUploading(false);
       setProgress(0);
@@ -63,7 +62,7 @@ export default function FileUploader({
     // Event listener for errors
     xhr.onerror = () => {
       console.error("Upload failed.");
-      alert("File upload failed.");
+      toast.error("File upload failed.");
       setIsUploading(false);
       setProgress(0);
     };
@@ -90,7 +89,7 @@ export default function FileUploader({
 
   const validateFile = (file: File) => {
     if (file.size > maxSize * 1024 * 1024) {
-      alert(`File size should not exceed ${maxSize}MB`);
+      toast.error(`File size should not exceed ${maxSize}MB`);
       return false;
     }
     return true;

@@ -21,12 +21,12 @@ const Home: FC = () => {
   }
 
   return (
-    <div>
+    <div className="mb-20">
       <Header />
       {actingAccount && isLogIn ? (
         <>
           <FileUploader />
-          <div className="flex gap-y-10">
+          <div className="flex flex-col gap-10">
             <TaskTable />
             <DataTable />
           </div>

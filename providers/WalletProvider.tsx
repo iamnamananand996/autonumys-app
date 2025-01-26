@@ -120,11 +120,13 @@ export const WalletProvider: FC<Props> = ({ children }) => {
       } else {
         setIsLogIn(false);
         toast.error(result.message || "Login failed.");
+        setIsLoading(false);
       }
     } catch (error) {
       setIsLogIn(false);
       console.error("Error during login:", error);
       toast.error("An error occurred. Please try again later.");
+      setIsLoading(false);
     }
   };
 
@@ -136,7 +138,6 @@ export const WalletProvider: FC<Props> = ({ children }) => {
           (account as { type: string }).type === "sr25519"
             ? WalletType.subspace
             : WalletType.ethereum;
-        setIsLoading(true);
         setActingAccount({ ...account, type });
         handleLogin(account.address, account.name);
         setPreferredAccount(account.address);
@@ -147,8 +148,6 @@ export const WalletProvider: FC<Props> = ({ children }) => {
           event: "wallet_select_account",
           value: `source:${account.source}`,
         });
-
-        setIsLoading(false);
       } catch (err) {
         console.error("Failed to change account:", err);
       }

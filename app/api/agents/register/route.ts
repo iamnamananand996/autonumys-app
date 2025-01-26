@@ -1,40 +1,81 @@
 import { NextResponse } from "next/server";
-import {
-  selfIssueCertificate,
-  generateRsaKeyPair,
-  registerAutoId,
-} from "@autonomys/auto-id";
-import { activate } from "@autonomys/auto-utils";
+import mongoose from "mongoose";
+// import {
+//   selfIssueCertificate,
+//   generateRsaKeyPair,
+//   registerAutoId,
+// } from "@autonomys/auto-id";
+// import { activate } from "@autonomys/auto-utils";
+import User from "@/models/User"; // Import your User model
+
+// Ensure MongoDB connection
+if (!mongoose.connection.readyState) {
+  mongoose
+    .connect(process.env.MONGODB_URI || "")
+    .then(() => {
+      console.log("Connected to MongoDB Atlas successfully.");
+    })
+    .catch((error) => {
+      console.error("Failed to connect to MongoDB Atlas:", error);
+    });
+}
 
 export async function POST(req: Request) {
-  const { agentName } = await req.json();
+  const { userId, agentName } = await req.json();
 
-  if (!agentName) {
+  if (!userId || !agentName) {
     return NextResponse.json(
-      { error: "Agent name is required" },
+      { error: "userId and agentName are required." },
       { status: 400 }
     );
   }
 
   try {
-    // Generate a cryptographic key pair
-    const keyPair = await generateRsaKeyPair();
+    // Check if the user already exists in the database
+    const existingUser = await User.findOne({ userId });
+    if (existingUser) {
+      return NextResponse.json(
+        { message: "User is already registered." },
+        { status: 400 }
+      );
+    }
 
-    // Generate an X.509 certificate
-    const certificate = await selfIssueCertificate(agentName, keyPair, 365);
+    // // Generate cryptographic keys
+    // const keyPair = await generateRsaKeyPair();
 
-    // Activate the API connection
-    const api = await activate({ networkId: "gemini-3h" });
+    // // Generate a certificate
+    // const certificate = await selfIssueCertificate(agentName, keyPair, 365);
 
-    // Register the Auto ID with the certificate
-    const tx = registerAutoId(api, certificate);
+    // // Activate API connection
+    // const api = await activate({ networkId: "gemini-3h" });
 
-    // Return the transaction structure for further handling
-    return NextResponse.json({ transaction: tx.toHuman() });
+    // // Register Auto ID
+    // const tx = registerAutoId(api, certificate);
+
+    // Create a new user object to save in the database
+    const newUser = new User({
+      userId,
+      autoId: userId + agentName, // Use the unique ID from the transaction
+      agentName,
+      createdAt: new Date(),
+    });
+
+    // Save the user to the database
+    await newUser.save();
+
+    return NextResponse.json({
+      message: "User registered successfully.",
+      user: {
+        userId: newUser.userId,
+        autoId: newUser.autoId,
+        agentName: newUser.agentName,
+        createdAt: newUser.createdAt,
+      },
+    });
   } catch (error) {
-    console.error("Agent Registration Failed:", error);
+    console.error("Registration failed:", error);
     return NextResponse.json(
-      { error: "Agent registration failed." },
+      { error: "Registration failed due to an internal error." },
       { status: 500 }
     );
   }

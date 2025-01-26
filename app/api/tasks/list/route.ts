@@ -13,9 +13,13 @@ export async function GET(request: Request) {
     const limit = parseInt(url.searchParams.get("limit") ?? "10", 10);
     const offset = parseInt(url.searchParams.get("offset") ?? "0", 10);
 
+    // Get the scope from query parameters, fallback to 'Scope.User' if not provided
+    const scopeParam = url.searchParams.get("scope") || "User";
+    const scope = Scope[scopeParam as keyof typeof Scope] || Scope.User;
+
     // Fetch tasks from decentralized storage using Auto Drive's getRoots API
     const tasksResponse = await apiCalls.getRoots(api, {
-      scope: Scope.User, // user-specific tasks
+      scope,
       limit,
       offset,
     });
@@ -27,6 +31,7 @@ export async function GET(request: Request) {
       totalCount: tasksResponse.totalCount,
       limit,
       offset,
+      scope: scopeParam,
     });
   } catch (error) {
     console.error("Error fetching tasks:", error);

@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import mongoose from "mongoose";
 // import {
 //   selfIssueCertificate,
 //   generateRsaKeyPair,
@@ -7,20 +6,11 @@ import mongoose from "mongoose";
 // } from "@autonomys/auto-id";
 // import { activate } from "@autonomys/auto-utils";
 import User from "@/models/User"; // Import your User model
-
-// Ensure MongoDB connection
-if (!mongoose.connection.readyState) {
-  mongoose
-    .connect(process.env.MONGODB_URI || "")
-    .then(() => {
-      console.log("Connected to MongoDB Atlas successfully.");
-    })
-    .catch((error) => {
-      console.error("Failed to connect to MongoDB Atlas:", error);
-    });
-}
+import { connectToDatabase } from "@/lib/mongoose";
 
 export async function POST(req: Request) {
+  await connectToDatabase();
+
   const { userId, agentName } = await req.json();
 
   if (!userId || !agentName) {

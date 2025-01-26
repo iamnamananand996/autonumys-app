@@ -1,22 +1,15 @@
 import { NextResponse } from "next/server";
-import mongoose from "mongoose";
 import User from "@/models/User";
-import Task from "@/models/Task"; // Assuming you have a Task model for tasks
-
-// Ensure MongoDB connection
-if (!mongoose.connection.readyState) {
-  mongoose
-    .connect(process.env.MONGODB_URI || "")
-    .then(() => {
-      console.log("Connected to MongoDB Atlas successfully.");
-    })
-    .catch((error) => {
-      console.error("Failed to connect to MongoDB Atlas:", error);
-    });
-}
+import Task from "@/models/Task";
+import { connectToDatabase } from "@/lib/mongoose";
+// import { activateWallet } from "@autonomys/auto-utils";
+// import { transfer } from "@autonomys/auto-consensus";
+// import { getApiInstance } from "@/lib/autonomys";
 
 export async function POST(req: Request) {
-  const { taskId, userId, status } = await req.json();
+  await connectToDatabase();
+
+  const { taskId, userId, status, senderAddress } = await req.json();
 
   if (!taskId || !userId || !status) {
     return NextResponse.json(
@@ -40,6 +33,24 @@ export async function POST(req: Request) {
     if (!user) {
       return NextResponse.json({ error: "User not found." }, { status: 404 });
     }
+
+    // const api = await getApiInstance();
+    // const transferTx = await transfer(api, user.userId, task.rewardPoints);
+
+    // // Sign and send the transaction
+    // await transferTx.signAndSend(
+    //   senderAddress,
+    //   ({ status, txHash, events }) => {
+    //     if (status.isInBlock) {
+    //       console.log(`Transaction included at blockHash ${status.asInBlock}`);
+    //       console.log(`Transaction hash: ${txHash}`);
+    //     } else if (status.isFinalized) {
+    //       console.log(
+    //         `Transaction finalized at blockHash ${status.asFinalized}`
+    //       );
+    //     }
+    //   }
+    // );
 
     const rewardPoints = task.rewardPoints; // Reward points from the task object
     user.reward = (user.reward || 0) + rewardPoints; // Add reward points to the existing reward

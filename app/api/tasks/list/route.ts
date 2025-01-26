@@ -1,20 +1,10 @@
 import { NextResponse } from "next/server";
-import mongoose from "mongoose";
-import Task from "@/models/Task"; // Assuming you have a Task model
-
-// Ensure MongoDB connection
-if (!mongoose.connection.readyState) {
-  mongoose
-    .connect(process.env.MONGODB_URI || "")
-    .then(() => {
-      console.log("Connected to MongoDB Atlas successfully.");
-    })
-    .catch((error) => {
-      console.error("Failed to connect to MongoDB Atlas:", error);
-    });
-}
+import Task from "@/models/Task";
+import { connectToDatabase } from "@/lib/mongoose";
 
 export async function GET(req: Request) {
+  await connectToDatabase();
+
   try {
     // Parse query parameters for pagination (optional)
     const url = new URL(req.url);

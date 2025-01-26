@@ -34,7 +34,7 @@ const DownloadButton = ({ cid, fileName, fileType }: DownloadButtonProps) => {
       document.body.removeChild(anchor);
       toast.success("File downloaded successfully");
     } catch (error) {
-      toast.error("Error downloading file:", error);
+      toast.error(`Error downloading file: ${error}`);
     } finally {
       setTimeout(() => {
         setIsLoading(false);

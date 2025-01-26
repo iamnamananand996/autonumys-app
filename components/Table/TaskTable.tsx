@@ -10,23 +10,20 @@ import {
 import { RefreshCcw } from "lucide-react";
 import Button from "../Button";
 import Skeleton from "../Skeleton";
-import DownloadButton from "./DownloadButton";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
-
-export interface Owner {
-  oauthProvide: string;
-  oauthUserId: string;
-  role: string;
-}
+import TaskStatusSelect from "./TaskStatusSelect";
+import useWallet from "@/hooks/useWallet";
 
 export interface Task {
-  headCid: string;
-  mimeType: string;
-  name: string;
-  owners: Owner[];
-  size: string;
-  type: string;
+  _id: string;
+  taskName: string;
+  taskDescription: string;
+  fileName: string;
+  cid: string;
+  status: string;
+  rewardPoints: number;
+  createdAt: string;
 }
 
 export default function DataTable() {
@@ -35,32 +32,44 @@ export default function DataTable() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(5);
-  const [scope, setScope] = useState("Global"); // New: Scope state
 
-  const fetchTasks = async (
-    page: number,
-    limit: number,
-    currentScope: string
-  ) => {
+  const { actingAccount } = useWallet();
+  console.log({ actingAccount });
+
+  const fetchTasks = async (page: number, limit: number) => {
     try {
       setLoading(true);
-      const offset = (page - 1) * limit;
       const response = await fetch(
-        `/api/storage/list?limit=${limit}&offset=${offset}&scope=${currentScope}`
+        `/api/tasks/list?page=${page}&limit=${limit}`
       );
       const data = await response.json();
-      setTasks(data.rows);
-      setTotalPages(Math.ceil(data.totalCount / limit));
-      setLoading(false);
+      if (response.ok) {
+        setTasks(
+          data.tasks.map((task: Task) => ({
+            _id: task._id,
+            taskName: task.taskName,
+            taskDescription: task.taskDescription,
+            fileName: task.fileName,
+            cid: task.cid,
+            status: task.status,
+            rewardPoints: task.rewardPoints,
+            createdAt: new Date(task.createdAt).toLocaleString(),
+          }))
+        );
+        setTotalPages(data.pagination.totalPages);
+        setLoading(false);
+      } else {
+        throw new Error(data.error || "Failed to fetch tasks.");
+      }
     } catch (error) {
-      toast.error(error);
+      toast.error(error || "Failed to fetch tasks.");
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchTasks(currentPage, rowsPerPage, scope);
-  }, [currentPage, rowsPerPage, scope]);
+    fetchTasks(currentPage, rowsPerPage);
+  }, [currentPage, rowsPerPage]);
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) {
@@ -76,42 +85,20 @@ export default function DataTable() {
     setCurrentPage(1); // Reset to first page whenever rows per page changes
   };
 
-  const handleScopeChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    const newScope = event.target.value;
-    setScope(newScope);
-    setCurrentPage(1); // Reset to first page whenever scope changes
-  };
-
   return (
     <div className="flex justify-center">
       <div className="p-6 space-y-6 container border rounded-lg">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold">Drive Assets</h1>
-            <p className="text-muted-foreground">
-              Here’s a list of your Drive Assets
-            </p>
+            <h1 className="text-2xl font-bold">Tasks</h1>
+            <p className="text-muted-foreground">Here’s a list of your tasks</p>
           </div>
           <div className="flex items-center space-x-4">
-            <div>
-              <label htmlFor="scope" className="mr-2 text-sm">
-                Scope:
-              </label>
-              <select
-                id="scope"
-                value={scope}
-                onChange={handleScopeChange}
-                className="border rounded px-2 py-1 text-sm"
-              >
-                <option value="Global">Global</option>
-                <option value="User">User</option>
-              </select>
-            </div>
             <Button
               size="sm"
               className="h-7"
               variant="outline"
-              onClick={() => fetchTasks(currentPage, rowsPerPage, scope)}
+              onClick={() => fetchTasks(currentPage, rowsPerPage)}
             >
               <RefreshCcw className="mr-2 h-4 w-4" />
               Refresh
@@ -121,10 +108,13 @@ export default function DataTable() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="font-semibold">Task Name</TableHead>
+              <TableHead className="font-semibold">Description</TableHead>
+              <TableHead className="font-semibold">File Name</TableHead>
               <TableHead className="font-semibold">CID</TableHead>
-              <TableHead className="font-semibold">Name</TableHead>
-              <TableHead className="font-semibold">Size</TableHead>
-              <TableHead className="font-semibold">Type</TableHead>
+              <TableHead className="font-semibold">Status</TableHead>
+              <TableHead className="font-semibold">Reward Points</TableHead>
+              <TableHead className="font-semibold">Created At</TableHead>
               <TableHead className="w-12"></TableHead>
             </TableRow>
           </TableHeader>
@@ -133,42 +123,51 @@ export default function DataTable() {
               ? Array.from({ length: rowsPerPage }).map((_, index) => (
                   <TableRow key={index}>
                     <TableCell>
-                      <Skeleton className="h-4 w-4" />
+                      <Skeleton className="h-4 w-24" />
                     </TableCell>
                     <TableCell>
-                      <div className="space-y-2">
-                        <Skeleton className="h-4 w-[100px]" />
-                        <Skeleton className="h-4 w-[80px]" />
-                      </div>
+                      <Skeleton className="h-4 w-40" />
                     </TableCell>
                     <TableCell>
-                      <Skeleton className="h-4 w-[300px]" />
+                      <Skeleton className="h-4 w-32" />
                     </TableCell>
                     <TableCell>
-                      <Skeleton className="h-4 w-[100px]" />
+                      <Skeleton className="h-4 w-32" />
                     </TableCell>
                     <TableCell>
-                      <Skeleton className="h-4 w-[80px]" />
+                      <Skeleton className="h-4 w-16" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-16" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-24" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-8" />
                     </TableCell>
                   </TableRow>
                 ))
               : tasks.map((task) => (
-                  <TableRow key={task.headCid}>
-                    <TableCell>
-                      <div className="space-y-1">
-                        <div className="font-medium text-blue-500 underline cursor-pointer">
-                          {task.headCid}
-                        </div>
-                      </div>
+                  <TableRow key={task._id}>
+                    <TableCell className="font-medium">
+                      {task.taskName}
                     </TableCell>
-                    <TableCell className="font-medium">{task.name}</TableCell>
-                    <TableCell>{task.size} bytes</TableCell>
-                    <TableCell>{task.type}</TableCell>
+                    <TableCell>{task.taskDescription}</TableCell>
+                    <TableCell>{task.fileName}</TableCell>
+                    <TableCell className="text-blue-500 underline cursor-pointer">
+                      {task.cid}
+                    </TableCell>
+                    <TableCell>{task.status}</TableCell>
+                    <TableCell>{task.rewardPoints}</TableCell>
+                    <TableCell>{task.createdAt}</TableCell>
                     <TableCell>
-                      <DownloadButton
-                        cid={task.headCid}
-                        fileName={task.name}
-                        fileType={task.mimeType}
+                      <TaskStatusSelect
+                        taskId={task._id}
+                        userId={
+                          actingAccount?.user ? actingAccount?.user._id : ""
+                        }
+                        initialStatus={task.status}
                       />
                     </TableCell>
                   </TableRow>

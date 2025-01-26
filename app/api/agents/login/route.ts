@@ -29,11 +29,7 @@ export async function POST(req: Request) {
       // User found
       return NextResponse.json({
         message: "User successfully logged in.",
-        user: {
-          userId: user.userId,
-          agentName: user.agentName,
-          autoId: user.autoId,
-        },
+        user: user,
       });
     } else {
       // User not found

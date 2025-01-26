@@ -20,6 +20,7 @@
     "@polkadot/extension-inject": "^0.58.2",
     "@polkadot/types": "^15.4.1",
     "@radix-ui/react-progress": "^1.1.1",
+    "@radix-ui/react-select": "^2.1.5",
     "@radix-ui/react-slot": "^1.1.1",
     "@subwallet/wallet-connect": "^0.2.7",
     "class-variance-authority": "^0.7.1",

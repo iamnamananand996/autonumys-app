@@ -16,18 +16,21 @@ import type { InjectedExtension } from "@polkadot/extension-inject/types";
 import { WalletType } from "constants/wallet";
 import { useSafeLocalStorage } from "hooks/useSafeLocalStorage";
 import { sendGAEvent } from "@next/third-parties/google";
-import type { WalletAccountWithType } from "types/wallet";
+import type {
+  ExtendedWalletAccount,
+  WalletAccountWithType,
+} from "types/wallet";
 import toast from "react-hot-toast";
 
 export interface WalletContextValue {
   api: ApiPromise | undefined;
   isReady: boolean;
   accounts: WalletAccountWithType[] | null | undefined;
-  actingAccount: WalletAccountWithType | undefined;
+  actingAccount: ExtendedWalletAccount | undefined;
   injector: InjectedExtension | null;
   error: Error | null;
   isLogIn: boolean;
-  isRegistered: boolean;
+  isLoading: boolean;
   setIsLogIn: Dispatch<SetStateAction<boolean>>;
   disconnectWallet: () => void;
   changeAccount: (account: WalletAccountWithType) => void;
@@ -46,15 +49,17 @@ export const WalletProvider: FC<Props> = ({ children }) => {
   const [api, setApi] = useState<ApiPromise>();
   const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+
   const [accounts, setAccounts] = useState<
     WalletAccountWithType[] | null | undefined
   >(undefined);
   const [actingAccount, setActingAccount] = useState<
-    WalletAccountWithType | undefined
+    ExtendedWalletAccount | undefined
   >(undefined);
   const [injector, setInjector] = useState<InjectedExtension | null>(null);
   const [isLogIn, setIsLogIn] = useState<boolean>(false);
-  const [isRegistered, setIsRegistered] = useState<boolean>(false);
+
   const [preferredAccount, setPreferredAccount] = useSafeLocalStorage(
     "localAccount",
     null
@@ -82,6 +87,7 @@ export const WalletProvider: FC<Props> = ({ children }) => {
     userId: string | undefined,
     agentName: string | undefined
   ) => {
+    setIsLoading(true);
     if (!userId || !agentName) {
       setIsLogIn(false);
       toast.error("Please fill all fields.");
@@ -101,7 +107,16 @@ export const WalletProvider: FC<Props> = ({ children }) => {
 
       if (response.ok) {
         setIsLogIn(true);
+
+        setActingAccount((prevState: any) => {
+          return {
+            ...prevState,
+            user: result.user,
+          };
+        });
+
         toast.success(`Login successful: Welcome ${result.user.agentName}!`);
+        setIsLoading(false);
       } else {
         setIsLogIn(false);
         toast.error(result.message || "Login failed.");
@@ -121,7 +136,7 @@ export const WalletProvider: FC<Props> = ({ children }) => {
           (account as { type: string }).type === "sr25519"
             ? WalletType.subspace
             : WalletType.ethereum;
-
+        setIsLoading(true);
         setActingAccount({ ...account, type });
         handleLogin(account.address, account.name);
         setPreferredAccount(account.address);
@@ -132,6 +147,8 @@ export const WalletProvider: FC<Props> = ({ children }) => {
           event: "wallet_select_account",
           value: `source:${account.source}`,
         });
+
+        setIsLoading(false);
       } catch (err) {
         console.error("Failed to change account:", err);
       }
@@ -208,6 +225,7 @@ export const WalletProvider: FC<Props> = ({ children }) => {
   return (
     <WalletContext.Provider
       value={{
+        isLoading,
         api,
         isReady,
         accounts,
@@ -215,7 +233,6 @@ export const WalletProvider: FC<Props> = ({ children }) => {
         injector,
         error,
         isLogIn,
-        isRegistered,
         disconnectWallet,
         setIsLogIn,
         changeAccount,

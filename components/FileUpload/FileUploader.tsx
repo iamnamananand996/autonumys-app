@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { X, Upload } from "lucide-react";
-
 import FileTypeIcon from "./FileTypeIcon";
 import Button from "../Button";
 import Progress from "../Progress";
@@ -21,60 +20,75 @@ export default function FileUploader({
   const [preview, setPreview] = React.useState<string | null>(null);
   const [progress, setProgress] = React.useState(0);
   const [isUploading, setIsUploading] = React.useState(false);
+  const [title, setTitle] = React.useState("");
+  const [description, setDescription] = React.useState("");
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   const handleFileUpload = async (file: File) => {
-    if (!file) return;
+    if (!file || !title || !description) {
+      toast.error("Please fill in all fields.");
+      return;
+    }
 
-    setIsUploading(true);
-    setProgress(0);
+    setIsUploading(true); // Start loader
+    setProgress(0); // Reset progress
 
-    const buffer = await file.arrayBuffer();
-    const fileBuffer = new Uint8Array(buffer);
+    const readFileAsBase64 = (file: File): Promise<string> => {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = (error) => reject(error);
+        reader.readAsDataURL(file);
+      });
+    };
+
+    const fileContent = await readFileAsBase64(file);
+
+    const payload = {
+      taskName: title,
+      taskDescription: description,
+      file: fileContent,
+      fileName: file.name,
+      rewardPoints: 100, // Replace with actual reward points if needed
+    };
+
     const xhr = new XMLHttpRequest();
 
-    xhr.open("POST", "/api/storage/upload", true);
+    xhr.open("POST", "/api/tasks/create", true);
     xhr.setRequestHeader("Content-Type", "application/json");
 
-    // Event listener to track upload progress
+    // Track upload progress
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable) {
         const percentCompleted = Math.round((event.loaded / event.total) * 100);
-        setProgress(percentCompleted);
+        setProgress(percentCompleted); // Update progress bar
       }
     };
 
-    // Event listener for successful upload
+    // Handle successful upload
     xhr.onload = () => {
       if (xhr.status === 200) {
-        const { cid } = JSON.parse(xhr.responseText);
-        toast.success(`File uploaded successfully. CID: ${cid}`);
-        setProgress(100);
+        const response = JSON.parse(xhr.responseText);
+        toast.success(`Task created successfully. CID: ${response.task.cid}`);
+        setProgress(100); // Complete progress
         clearFile();
+        clearInputs();
       } else {
         console.error("Upload failed:", xhr.statusText);
-        toast.error("File upload failed.");
+        toast.error("Task creation failed.");
       }
-      setIsUploading(false);
-      setProgress(0);
+      setIsUploading(false); // Stop loader
     };
 
-    // Event listener for errors
+    // Handle upload error
     xhr.onerror = () => {
       console.error("Upload failed.");
-      toast.error("File upload failed.");
+      toast.error("Task creation failed.");
       setIsUploading(false);
-      setProgress(0);
     };
 
-    // Prepare the request body
-    const body = JSON.stringify({
-      fileBuffer: Array.from(fileBuffer),
-      fileName: file.name,
-    });
-
-    // Send the request
-    xhr.send(body);
+    // Send the payload
+    xhr.send(JSON.stringify(payload));
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -138,9 +152,32 @@ export default function FileUploader({
     }
   };
 
+  const clearInputs = () => {
+    setTitle("");
+    setDescription("");
+  };
+
   return (
     <div className="flex justify-center my-10">
       <div className="w-[800px]">
+        {/* Input Fields for Title and Description */}
+        <div className="mb-4">
+          <input
+            type="text"
+            placeholder="Title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="w-full p-2 border rounded mb-2"
+          />
+          <textarea
+            placeholder="Description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            className="w-full p-2 border rounded"
+          />
+        </div>
+
+        {/* File Dropzone */}
         <div
           className={`mt-4 border-2 border-dashed rounded-lg p-8 ${
             isDragging ? "border-primary bg-primary/10" : "border-muted"
@@ -221,7 +258,7 @@ export default function FileUploader({
 
             <Button
               size="sm"
-              disabled={!file || isUploading}
+              disabled={!file || !title || !description || isUploading}
               variant="default"
               onClick={() => file && handleFileUpload(file)}
             >

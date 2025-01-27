@@ -22,8 +22,14 @@
    ```
 
 4. Open the app in your browser:
+
    ```
    http://localhost:3000
+   ```
+
+5. Run tests:
+   ```
+   pnpm run test
    ```
 
 ---
@@ -159,6 +165,17 @@
 
 - Token distribution and management are integrated with the Autonomys blockchain using `@autonomys/auto-consensus`.
 
+### Testing:
+
+- **Vite for Testing**: The project uses Vite, a fast and modern build tool, to streamline the testing process.
+- **Unit Testing**: All critical components, including APIs, frontend components, and blockchain integrations, are covered by unit tests to ensure correctness and robustness.
+- **Mock Data and Environments**: Mock services and test environments are configured to simulate real-world scenarios during testing.
+
+### Additional Tools:
+
+- **ESLint & Prettier**: Enforces consistent code style and quality across the codebase.
+- **GitHub Actions**: Used for Continuous Integration (CI) to automated deployment.
+
 ---
 
 ## Flow Diagram
@@ -174,5 +191,3 @@
 ## Demo
 
 https://github.com/user-attachments/assets/d1b06619-0269-4c43-9ec0-cb75381220fa
-
-

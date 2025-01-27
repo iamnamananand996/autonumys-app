@@ -21,8 +21,15 @@
     "baseUrl": "./",
     "paths": {
       "@/*": ["*"]
-    }
+    },
+    "types": ["vitest/globals", "node"]
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "include": [
+    "tests/global.d.ts",
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts"
+  ],
   "exclude": ["node_modules"]
 }

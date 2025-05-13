@@ -1,10 +1,31 @@
 name: Release Packages
 
 on:
-  push:
-    tags:
-      - 'v*'
+  workflow_dispatch:
+    inputs:
+      releaseType:
+        description: 'Release type (major, minor, patch)'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      dryRun:
+        description: 'Dry run (no publish)'
+        required: false
+        default: false
+        type: boolean
+      prerelease:
+        description: 'Pre-release'
+        required: false
+        default: false
+        type: boolean
 
+permissions:
+  contents: write
+  pull-requests: read
 jobs:
   release:
     runs-on: ubuntu-latest
